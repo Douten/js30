@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>JS + CSS Clock</title>
+</head>
+<body>
+
+
+  <div class="clock">
+    <div class="clock-face">
+      <div class="hour-motor">
+        <div class="hand hour-hand"></div>
+      </div>
+      <div class="minute-motor">
+        <div class="hand min-hand"></div>
+      </div>
+      <div class="second-motor">
+        <div class="hand second-hand"></div>
+      </div>
+    </div>
+  </div>
+  <div class="clock">
+    <div class="clock-face">
+      <div class="hour-motor tz">
+        <div class="hand hour-hand"></div>
+      </div>
+      <div class="minute-motor tz">
+        <div class="hand min-hand"></div>
+      </div>
+      <div class="second-motor tz">
+        <div class="hand second-hand"></div>
+      </div>
+    </div>
+  </div>
+  <div class="clock">
+    <div class="clock-face">
+      <div class="hour-motor">
+        <div class="hand hour-hand"></div>
+      </div>
+      <div class="minute-motor">
+        <div class="hand min-hand"></div>
+      </div>
+      <div class="second-motor">
+        <div class="hand second-hand"></div>
+      </div>
+    </div>
+  </div>
+
+  <input type="text" class="search" placeholder="City or State">
+  <ul class="suggestions">
+    <li>Filter for a city</li>
+    <li>or a state</li>
+  </ul>
+
+  <style>
+    html {
+      background: #018DED url(http://unsplash.it/1500/1000?image=881&blur=50);
+      background-size: cover;
+      font-family: 'helvetica neue';
+      text-align: center;
+      font-size: 10px;
+    }
+
+    body {
+      margin: 0;
+      font-size: 2rem;
+      display: flex;
+      flex: 1;
+      min-height: 100vh;
+      align-items: center;
+    }
+
+    .clock {
+      width: 30rem;
+      height: 30rem;
+      border: 20px solid white;
+      border-radius: 50%;
+      margin: 50px auto;
+      position: relative;
+      padding: 2rem;
+      box-shadow:
+        0 0 0 4px rgba(0,0,0,0.1),
+        inset 0 0 0 3px #EFEFEF,
+        inset 0 0 10px black,
+        0 0 10px rgba(0,0,0,0.2);
+    }
+
+    .clock-face {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform: translateY(-3px); /* account for the height of the clock hands */
+    }
+
+    .second-motor, .minute-motor, .hour-motor{
+      height: 100%;
+      width: 100%;
+      transition: all linear;
+      position: absolute;
+      display: flex;
+      justify-content: center;
+    }
+
+    .hour-motor{
+      transition-duration: 2s;
+    }
+
+    .hand {
+      width: 8px;
+      background: black;
+      position: absolute;
+      transform-origin: 100%;
+    }
+    
+    .hour-hand{
+      height: 40%;
+      top: 13%;
+    }
+
+    .min-hand{
+      height: 55%;
+    }
+    .second-hand{
+      width: 4px;
+      height: 60%;
+      background: red;
+    }
+
+
+    .suggestions {
+      margin: 0;
+      padding: 0;
+      position: relative;
+      /*perspective: 20px;*/
+    }
+
+    .suggestions li {
+      background: white;
+      list-style: none;
+      border-bottom: 1px solid #D8D8D8;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.14);
+      margin: 0;
+      padding: 20px;
+      transition: background 0.2s;
+      display: flex;
+      justify-content: space-between;
+      text-transform: capitalize;
+    }
+
+  </style>
+
+
+  <script>
+
+    const tzJson = 'http://api.timezonedb.com/v2.1/list-time-zone?key=W4AHT9ENEN7Z&format=json';
+    const citiesTZ = [];
+    fetch(tzJson)
+      .then(response => response.json())
+      .then(data => {
+        citiesTZ.push(...data.zones.map(place => {
+            const city = (/\/([\w\-]+)$/gi.exec(place.zoneName)[1]).replace(/\_/g,' ');
+            const tz = place.gmtOffset/3600;
+            return [city, tz];
+        }));
+      })
+    
+    
+
+
+    function findMatches(word, citiesTZ){
+
+      return citiesTZ.filter(city => {
+        const regex = new RegExp(word, 'gi');
+        return city[0].match(regex);
+      })
+      
+    }
+
+    function displayMatches(){
+      const matchArray = findMatches(this.value, citiesTZ);
+      const html = matchArray.map(place => {
+        return `
+          <li data-timezone="${place[1]}">
+            ${place[0]} | GMT ${place[1]}
+          </li>
+        `;
+      }).join(''); //turns array to string for innerHTML
+      suggestions.innerHTML = html;
+    }
+    
+    document.querySelector('.suggestions').addEventListener('click', function (event) {
+      console.log('clicked');
+      if (!event.target.matches('li')) return;
+      console.log(event.target.dataset.timezone);
+      setDateTZ(event.target.dataset.timezone)
+    })
+
+    document.querySelector('.suggestions').addEventListener('mouseenter', function(e){
+      searchInput.blur();
+    });
+    //on keydown focus back on the text input while input is stil active.
+    
+
+    //set up variable for timezone changes. new hour is based on current hour.
+    const now = new Date();
+    const gmt = now.getTimezoneOffset()/60;
+    let gmtDiff = 0;
+    
+    function setDateTZ(newGmt){
+      gmtDiff = newGmt - gmt;      
+    }
+
+    const searchInput = document.querySelector('.search');
+    const suggestions = document.querySelector('.suggestions');
+
+    searchInput.addEventListener('change', displayMatches);
+    searchInput.addEventListener('keyup', displayMatches);
+
+
+
+    const secondHand = document.querySelector('.second-motor');
+    const minHand = document.querySelector('.minute-motor');
+    const hourHand = document.querySelector('.hour-motor');
+
+    const sHtz = document.querySelector('.second-motor.tz');
+    const mHtz = document.querySelector('.minute-motor.tz');
+    const hHtz = document.querySelector('.hour-motor.tz');
+
+
+    function setDate() {
+      const now = new Date();
+      
+      const miliSecs = now.getMilliseconds();
+
+      const seconds = now.getSeconds();
+      const secondDegrees = seconds * 6 + .006 * miliSecs;
+      secondHand.style.transform = `rotate(${secondDegrees}deg)`;
+      sHtz.style.transform = `rotate(${secondDegrees}deg)`;
+
+      const mins = now.getMinutes();
+      const minDegrees = (mins*6) + (seconds*.1);
+      minHand.style.transform = `rotate(${minDegrees}deg)`;
+      mHtz.style.transform = `rotate(${minDegrees}deg)`;
+
+
+      const hours = now.getHours() % 12;
+      const hoursTz = (now.getHours() + gmtDiff) % 12;
+
+
+      const hourDegrees = (hours*30) + (mins*.5);
+      const hourDegreesTz = (hoursTz*30) + (mins*.5);
+
+      hourHand.style.transform = `rotate(${hourDegrees}deg)`;      
+      hHtz.style.transform = `rotate(${hourDegreesTz}deg)`;
+
+
+    }
+
+    setInterval(setDate, 1000/60);
+
+    setDate();
+
+  </script>
+</body>
+</html>
